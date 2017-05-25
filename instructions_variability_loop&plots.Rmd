@@ -1,0 +1,95 @@
+---
+title: "Algal biomass variability calculation and plot illustration"
+author: "Thomas Van Zuiden"
+date: "May 25, 2017"
+output: html_document
+---
+#### Load required packages
+```{r warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(zoo)
+library(cowplot)
+```
+
+### Import data and see how it looks (determine its structure)
+```{r echo=FALSE}
+setwd("C:\\Users\\adminuser\\Desktop\\EVERYTHING THOMAS\\gitprojects\\30yr_Algae_Variability_Dorset")
+```
+```{r results="hide"}
+dat1<-read.csv("01RELdorset.csv")
+dat2<-read.csv("02ABSdorset.csv")
+names(dat1)
+names(dat2)
+```
+```{r results="hide"}
+al_rel <- dat1[,c(1,4:10)]
+al_abs <- dat2[,c(3:9)]
+names(al_rel)
+names(al_abs)
+```
+
+### 5 year rolling standard deviation window for relative and absolute algal biomasses
+```{r}
+df <- data.frame() # Create empty data frames
+df1 <- data.frame()
+for (i in unique(al_rel$Lake)){
+  relsd_i <- rollapply(al_rel[al_rel$Lake==i,3:8],5,sd,fill=NA,by.column=TRUE)
+  abssd_i <- rollapply(al_abs[al_abs$Lake==i,2:7],5,sd,fill=NA,by.column=TRUE)
+  df <- rbind(df,relsd_i)
+  df1<- rbind(df1, abssd_i)
+}
+```
+
+### Creating a new data frame with the algae biomasses and their respective 5 year variability windows
+```{r results="hide"}
+new_dat <- data.frame(al_rel,df,al_abs,df1)
+names(new_dat)
+new_dat <- new_dat[, -c(15), drop=FALSE] ### Dropping the extra "year" column
+head(new_dat)
+```
+
+### 2 by 2 grid of chrysophyte biomasses plots and their 5 year variabilities in 9 Dorset lakes
+
+#### P.S. if anyone knows a way to write cleaner ggplot2 code, I'd love to hear it
+```{r warning=FALSE, message=FALSE}
+A <- ggplot(data=new_dat, aes(x=Year, y=Chrysophytes_REL))+geom_line(aes(colour=Lake), size=1.1)+
+  scale_color_manual(values=c(6,"red2", "orange","yellow2","green","darkgreen","cyan","blue",1,8))+
+  xlab("Year")+ylab("Relative Chrysophyte Biomass")+ylim(c(0,80))+
+  theme_grey(base_size = 11, base_family = "Helvetica")+theme(legend.position="none")
+
+C <- ggplot(data=new_dat, aes(x=Year, y=Chrysophytes_REL.1))+geom_line(aes(colour=Lake), size=1.1)+
+  scale_color_manual(values=c(6,"red2", "orange","yellow2","green","darkgreen","cyan","blue",1,8))+
+  xlab("Year")+ylab("5Yr Relative Variability")+ylim(c(0,30))+
+  theme_grey(base_size = 11, base_family = "Helvetica")+theme(legend.position="none")
+
+B <- ggplot(data=new_dat, aes(x=Year, y=Chrysophytes_BV))+geom_line(aes(colour=Lake), size=1.1)+
+  scale_color_manual(values=c(6,"red2", "orange","yellow2","green","darkgreen","cyan","blue",1,8))+
+  xlab("Year")+ylab("Total Chrysophyte Biovolume")+ylim(c(0,3600))+
+  theme_grey(base_size = 11, base_family = "Helvetica")+theme(legend.position="none")
+
+D <- ggplot(data=new_dat, aes(x=Year, y=Chrysophytes_BV.1))+geom_line(aes(colour=Lake), size=1.1)+
+  scale_color_manual(values=c(6,"red2", "orange","yellow2","green","darkgreen","cyan","blue",1,8))+
+  xlab("Year")+ylab("5Yr Biovolume Variability")+ylim(c(0,1500))+
+  theme_grey(base_size = 11, base_family = "Helvetica")+theme(legend.position="none")
+
+prow <- plot_grid( A + theme(legend.position="none",axis.text.x=element_blank(),
+                             axis.title.x=element_blank()),
+                   C + theme(legend.position="none",axis.text.x=element_blank(),
+                             axis.title.x=element_blank()),
+                   B + theme(legend.position="none"),
+                   D + theme(legend.position="none"),
+                   align = 'vh',
+                   hjust = -1,
+                   nrow = 2
+)
+
+legend <- get_legend(A + theme(legend.position="left"))
+p <- plot_grid( prow, legend, rel_widths = c(3,0.85))
+p
+```
+
+### create the same plots for the other species of Algae
+
+### See the code from the "variability_codes_plots.R" directory for a 3x3 grid of plots alternative to the 2x2 grid shown above
